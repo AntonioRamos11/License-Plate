@@ -85,3 +85,4 @@ sphinx-rtd-theme>=0.5.2
 #   pip install -r requirements.txt
 #   pip install pytest black flake8
 # ========================================
+thop

@@ -12,6 +12,11 @@ from pathlib import Path
 import sys
 import os
 import time
+import easyocr
+import re
+import matplotlib
+matplotlib.use('Agg')  # Backend sin GUI
+import matplotlib.pyplot as plt
 
 # Agregar el directorio raíz al path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -66,6 +71,10 @@ class LicensePlateDetector:
         
         # Colores para visualización
         self.colors = [[np.random.randint(0, 255) for _ in range(3)] for _ in range(len(self.names))]
+        
+        # Inicializar EasyOCR
+        print("🔤 Inicializando motor OCR...")
+        self.reader = easyocr.Reader(['en'], gpu=torch.cuda.is_available())
         
         # Inicializar base de datos
         print(f"💾 Conectando a base de datos: {db_path}")
@@ -137,7 +146,7 @@ class LicensePlateDetector:
                 # Convertir a lista de diccionarios
                 for *xyxy, conf, cls in det:
                     detection = {
-                        'bbox': [int(x) for x in xyxy],  # [x1, y1, x2, y2]
+                        'bbox': [int(xyxy[0]), int(xyxy[1]), int(xyxy[2]), int(xyxy[3])],  # [x1, y1, x2, y2]
                         'confidence': float(conf),
                         'class': int(cls),
                         'class_name': self.names[int(cls)]
@@ -150,24 +159,49 @@ class LicensePlateDetector:
     
     def extract_plate_text(self, img, bbox):
         """
-        Extrae el texto de una matrícula detectada.
+        Extrae el texto de una matrícula detectada usando OCR.
         
         Args:
             img (numpy.ndarray): Imagen original
             bbox (list): Coordenadas [x1, y1, x2, y2]
             
         Returns:
-            str: Texto extraído de la matrícula (simulado)
+            str: Texto extraído de la matrícula
         """
-        # NOTA: Esta es una versión simulada. Para OCR real, se necesitaría
-        # integrar Tesseract OCR o un modelo de reconocimiento de texto
-        
         x1, y1, x2, y2 = bbox
+        
+        # Agregar margen para mejorar la detección
+        margin = 5
+        h, w = img.shape[:2]
+        x1 = max(0, x1 - margin)
+        y1 = max(0, y1 - margin)
+        x2 = min(w, x2 + margin)
+        y2 = min(h, y2 + margin)
+        
+        # Recortar región de la matrícula
         plate_img = img[y1:y2, x1:x2]
         
-        # Por ahora, retornamos un placeholder
-        # En producción, aquí iría el código de OCR real
-        return "SIMULADO_" + str(hash(str(bbox)) % 10000)
+        # Preprocesar imagen para mejorar OCR
+        plate_gray = cv2.cvtColor(plate_img, cv2.COLOR_BGR2GRAY)
+        plate_gray = cv2.resize(plate_gray, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
+        plate_gray = cv2.GaussianBlur(plate_gray, (3, 3), 0)
+        plate_gray = cv2.threshold(plate_gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
+        
+        # Realizar OCR
+        try:
+            results = self.reader.readtext(plate_gray, detail=0, paragraph=False)
+            
+            if results:
+                # Concatenar todos los textos detectados
+                plate_text = ''.join(results)
+                # Limpiar texto: solo letras y números
+                plate_text = re.sub(r'[^A-Z0-9]', '', plate_text.upper())
+                return plate_text if plate_text else "DESCONOCIDO"
+            else:
+                return "DESCONOCIDO"
+        except Exception as e:
+            print(f"    ⚠️  Error en OCR: {e}")
+            return "ERROR_OCR"
     
     def identify_owner(self, plate_text):
         """
@@ -265,7 +299,7 @@ class LicensePlateDetector:
         results = []
         for i, det in enumerate(detections):
             print(f"\n  Detección {i+1}:")
-            print(f"    Confianza: {det['confidence']:.2%}")
+            print(f"    Confianza: {det['confidence']*100:.2f}%")
             
             # Extraer texto de matrícula (simulado)
             plate_text = self.extract_plate_text(img0, det['bbox'])
@@ -304,9 +338,24 @@ class LicensePlateDetector:
         
         # Mostrar resultado
         if show:
-            cv2.imshow('Detección de Matrículas', img0)
-            cv2.waitKey(0)
-            cv2.destroyAllWindows()
+            try:
+                # Intentar mostrar con matplotlib (funciona mejor sin GUI)
+                plt.figure(figsize=(12, 8))
+                # Convertir BGR a RGB para matplotlib
+                img_rgb = cv2.cvtColor(img0, cv2.COLOR_BGR2RGB)
+                plt.imshow(img_rgb)
+                plt.axis('off')
+                plt.title('Detección de Matrículas', fontsize=16)
+                
+                # Guardar la visualización
+                viz_path = str(Path(output_path).parent / f"{Path(output_path).stem}_viz.png") if output_path else 'detection_result.png'
+                plt.savefig(viz_path, bbox_inches='tight', dpi=150)
+                print(f"\n📊 Visualización guardada en: {viz_path}")
+                plt.close()
+            except Exception as e:
+                print(f"\n⚠️  No se puede mostrar/guardar la visualización: {e}")
+                if output_path:
+                    print(f"   Revisa la imagen guardada en: {output_path}")
         
         return results
     
@@ -441,6 +490,10 @@ def main():
     # Procesar según tipo
     if source.suffix.lower() in ['.jpg', '.jpeg', '.png', '.bmp']:
         # Es una imagen
+        # Generar ruta de salida si no se especifica
+        if not args.output:
+            args.output = str(source.parent / f"{source.stem}_result{source.suffix}")
+        
         detector.process_image(
             image_path=str(source),
             output_path=args.output,
