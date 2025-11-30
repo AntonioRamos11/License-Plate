@@ -1,0 +1,87 @@
+# ========================================
+# Sistema de Detección de Matrículas
+# Requisitos de Dependencias
+# ========================================
+
+# PyTorch y Visión Artificial
+torch>=1.7.0
+torchvision>=0.8.0
+torchaudio>=0.7.0
+
+# Procesamiento de Imágenes y Video
+opencv-python>=4.5.0
+opencv-contrib-python>=4.5.0
+Pillow>=8.0.0
+
+# Computación Científica
+numpy>=1.19.0
+scipy>=1.5.0
+
+# Visualización y Gráficos
+matplotlib>=3.3.0
+seaborn>=0.11.0
+
+# Utilidades de Datos
+pandas>=1.1.0
+PyYAML>=5.3
+
+# Barras de Progreso
+tqdm>=4.50.0
+
+# Manejo de Argumentos
+argparse>=1.4.0
+
+# Logging Avanzado
+tensorboard>=2.4.0
+
+# Métricas y Evaluación
+scikit-learn>=0.24.0
+pycocotools>=2.0.2
+
+# Base de Datos (incluido en Python standard library, pero especificado para claridad)
+# sqlite3 - viene con Python
+
+# Utilidades Web (opcional, para futuras features)
+requests>=2.25.0
+
+# Procesamiento de Archivos
+pathlib2>=2.3.5; python_version < "3.4"
+
+# Manejo de Imágenes
+imageio>=2.9.0
+
+# OCR (Opcional - para reconocimiento de texto real)
+# pytesseract>=0.3.8
+# easyocr>=1.4.0
+
+# Aceleración GPU (opcional)
+# onnx>=1.9.0
+# onnxruntime-gpu>=1.8.0
+
+# Desarrollo y Testing (opcional)
+pytest>=6.2.0
+pytest-cov>=2.12.0
+black>=21.5b0
+flake8>=3.9.0
+mypy>=0.900
+
+# Documentación (opcional)
+sphinx>=4.0.0
+sphinx-rtd-theme>=0.5.2
+
+# ========================================
+# Notas de Instalación:
+# 
+# Para instalar todas las dependencias:
+#   pip install -r requirements.txt
+#
+# Para instalación con GPU (CUDA):
+#   pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+#
+# Para instalación solo CPU:
+#   pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+#
+# Para desarrollo:
+#   pip install -r requirements.txt
+#   pip install pytest black flake8
+# ========================================
